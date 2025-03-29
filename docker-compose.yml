@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  youtube-instrumental-bot:
+    build: .
+    restart: always
+    volumes:
+      - ./downloads:/app/downloads
+      - ./output:/app/output
+    env_file:
+      - .env
