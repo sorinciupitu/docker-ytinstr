@@ -1,0 +1,6 @@
+python-telegram-bot==13.7
+yt-dlp
+python-dotenv
+torch
+torchaudio
+demucs
