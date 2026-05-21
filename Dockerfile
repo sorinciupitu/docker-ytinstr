@@ -14,6 +14,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_ROOT_USER_ACTION=ignore \
     LD_LIBRARY_PATH=/usr/local/lib
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the small OpenMP runtime library required by torch/torchaudio without using apt.
 RUN --mount=from=gcc-runtime,source=/usr/lib,target=/gcc-libs,readonly python - <<'PY'
 import glob
