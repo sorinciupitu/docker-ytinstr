@@ -20,9 +20,12 @@ from `config/cookies.txt` by default and mounts it into Docker as read-only.
    config/cookies.txt
    ```
 
-   The file must be in Netscape cookies format. You can export it with a
-   browser extension such as "Get cookies.txt LOCALLY" or with `yt-dlp` from the
-   host machine:
+   The file must be in Netscape cookies format and must not be empty. The
+   easiest option is a browser extension such as "Get cookies.txt LOCALLY":
+   export cookies for `youtube.com`, then save the downloaded file as
+   `config/cookies.txt` in this project folder.
+
+   You can also try exporting with `yt-dlp` from the host machine:
 
    ```bash
    yt-dlp --cookies-from-browser chrome --cookies config/cookies.txt --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ"

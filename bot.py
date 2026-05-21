@@ -28,6 +28,11 @@ DEFAULT_COOKIES_FILE = os.path.join(BASE_DIR, "config", "cookies.txt")
 YTDLP_COOKIES_FILE = os.environ.get("YTDLP_COOKIES_FILE", DEFAULT_COOKIES_FILE)
 YTDLP_COOKIES_FROM_BROWSER = os.environ.get("YTDLP_COOKIES_FROM_BROWSER")
 FFMPEG_LOCATION = os.environ.get("FFMPEG_LOCATION")
+YTDLP_REQUIRE_COOKIES = os.environ.get("YTDLP_REQUIRE_COOKIES", "1").lower() not in (
+    "0",
+    "false",
+    "no",
+)
 
 # Create directories if they don't exist
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -43,6 +48,31 @@ def get_ffmpeg_location():
     except Exception as e:
         logger.warning("Could not locate bundled ffmpeg: %s", e)
         return None
+
+def configure_ytdlp_auth(ydl_opts):
+    """Attach YouTube cookies to yt-dlp or fail with an actionable message."""
+    if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE) and os.path.getsize(YTDLP_COOKIES_FILE) > 0:
+        ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
+        logger.info("Using yt-dlp cookies file: %s", YTDLP_COOKIES_FILE)
+        return
+
+    if YTDLP_COOKIES_FROM_BROWSER:
+        ydl_opts['cookiesfrombrowser'] = tuple(
+            item.strip() for item in YTDLP_COOKIES_FROM_BROWSER.split(':') if item.strip()
+        )
+        logger.info("Using yt-dlp cookies from browser: %s", YTDLP_COOKIES_FROM_BROWSER)
+        return
+
+    message = (
+        "YouTube cookies are missing. Export cookies from a signed-in browser "
+        f"and save them on this machine as config/cookies.txt. Inside Docker "
+        f"the bot expects the file at {YTDLP_COOKIES_FILE}."
+    )
+
+    if YTDLP_REQUIRE_COOKIES:
+        raise RuntimeError(message)
+
+    logger.warning(message)
 
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
@@ -153,26 +183,22 @@ def download_youtube_audio(url, output_path):
         ydl_opts['ffmpeg_location'] = ffmpeg_location
         logger.info("Using ffmpeg binary: %s", ffmpeg_location)
 
-    if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
-        ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
-        logger.info("Using yt-dlp cookies file: %s", YTDLP_COOKIES_FILE)
-    elif YTDLP_COOKIES_FROM_BROWSER:
-        ydl_opts['cookiesfrombrowser'] = tuple(
-            item.strip() for item in YTDLP_COOKIES_FROM_BROWSER.split(':') if item.strip()
-        )
-        logger.info("Using yt-dlp cookies from browser: %s", YTDLP_COOKIES_FROM_BROWSER)
-    elif YTDLP_COOKIES_FILE:
-        logger.warning("yt-dlp cookies file not found: %s", YTDLP_COOKIES_FILE)
+    configure_ytdlp_auth(ydl_opts)
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             return info.get('title', 'Unknown Title')
     except yt_dlp.utils.DownloadError as exc:
-        if "Sign in to confirm" in str(exc) and not ydl_opts.get('cookiefile'):
+        error_text = str(exc)
+        if (
+            "Sign in to confirm" in error_text
+            or "HTTP Error 403" in error_text
+            or "Forbidden" in error_text
+        ):
             raise RuntimeError(
-                "YouTube requires browser cookies for this video. Export cookies to "
-                f"{YTDLP_COOKIES_FILE} and restart the bot."
+                "YouTube blocked the download. Export fresh cookies from a signed-in "
+                "browser and save them as config/cookies.txt, then restart the bot."
             ) from exc
         raise
 
