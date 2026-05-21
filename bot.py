@@ -20,8 +20,12 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
+OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+DEFAULT_COOKIES_FILE = os.path.join(BASE_DIR, "config", "cookies.txt")
+YTDLP_COOKIES_FILE = os.environ.get("YTDLP_COOKIES_FILE", DEFAULT_COOKIES_FILE)
+YTDLP_COOKIES_FROM_BROWSER = os.environ.get("YTDLP_COOKIES_FROM_BROWSER")
 
 # Create directories if they don't exist
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -63,6 +67,7 @@ def process_with_method(update: Update, context: CallbackContext, method='standa
     
     update.message.reply_text(f'Processing your request using {method} vocal removal. This may take a few minutes...')
     
+    temp_dir = None
     try:
         # Create temporary directories for processing
         temp_dir = tempfile.mkdtemp()
@@ -94,12 +99,12 @@ def process_with_method(update: Update, context: CallbackContext, method='standa
         else:
             update.message.reply_text('Sorry, there was an error processing the audio.')
         
-        # Clean up temporary files
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        
     except Exception as e:
         logger.error(f"Error: {e}")
         update.message.reply_text(f'Sorry, an error occurred: {str(e)}')
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 def standard_command(update: Update, context: CallbackContext) -> None:
     """Process with standard vocal removal."""
@@ -129,10 +134,29 @@ def download_youtube_audio(url, output_path):
         'outtmpl': output_path,
         'noplaylist': True,  # Add this to prevent playlist downloads
     }
+
+    if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
+        ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
+        logger.info("Using yt-dlp cookies file: %s", YTDLP_COOKIES_FILE)
+    elif YTDLP_COOKIES_FROM_BROWSER:
+        ydl_opts['cookiesfrombrowser'] = tuple(
+            item.strip() for item in YTDLP_COOKIES_FROM_BROWSER.split(':') if item.strip()
+        )
+        logger.info("Using yt-dlp cookies from browser: %s", YTDLP_COOKIES_FROM_BROWSER)
+    elif YTDLP_COOKIES_FILE:
+        logger.warning("yt-dlp cookies file not found: %s", YTDLP_COOKIES_FILE)
     
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        return info.get('title', 'Unknown Title')
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return info.get('title', 'Unknown Title')
+    except yt_dlp.utils.DownloadError as exc:
+        if "Sign in to confirm" in str(exc) and not ydl_opts.get('cookiefile'):
+            raise RuntimeError(
+                "YouTube requires browser cookies for this video. Export cookies to "
+                f"{YTDLP_COOKIES_FILE} and restart the bot."
+            ) from exc
+        raise
 
 def process_audio(input_file, output_dir, method='standard', progress_callback=None, original_title=None):
     """Remove vocals using Demucs for high-quality source separation."""
@@ -158,6 +182,7 @@ def process_youtube_url(update: Update, context: CallbackContext) -> None:
     
     update.message.reply_text('Processing your request using standard vocal removal. This may take a few minutes...')
     
+    temp_dir = None
     try:
         # Create temporary directories for processing
         temp_dir = tempfile.mkdtemp()
@@ -189,12 +214,12 @@ def process_youtube_url(update: Update, context: CallbackContext) -> None:
         else:
             update.message.reply_text('Sorry, there was an error processing the audio.')
         
-        # Clean up temporary files
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        
     except Exception as e:
         logger.error(f"Error: {e}")
         update.message.reply_text(f'Sorry, an error occurred: {str(e)}')
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 def main() -> None:
     """Start the bot."""

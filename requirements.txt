@@ -1,5 +1,5 @@
 python-telegram-bot==13.7
-yt-dlp
+yt-dlp[default]
 python-dotenv
 torch
 torchaudio

@@ -1,0 +1,9 @@
+.git
+.env
+config/cookies.txt
+
+__pycache__/
+*.py[cod]
+
+downloads/
+output/

@@ -1,6 +1,42 @@
 # docker-ytinstr
 YouTube to Instrumental Converter (Telegram Bot)
 
+## Fix for YouTube "Sign in to confirm you're not a bot"
+
+YouTube may block automated downloads unless `yt-dlp` receives cookies from a
+signed-in browser session. This app now reads a Netscape-format cookies file
+from `config/cookies.txt` by default and mounts it into Docker as read-only.
+
+1. Keep your Telegram token in a local `.env` file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Export YouTube cookies from a browser where you are signed in and save them
+   as:
+
+   ```text
+   config/cookies.txt
+   ```
+
+   The file must be in Netscape cookies format. You can export it with a
+   browser extension such as "Get cookies.txt LOCALLY" or with `yt-dlp` from the
+   host machine:
+
+   ```bash
+   yt-dlp --cookies-from-browser chrome --cookies config/cookies.txt --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+   ```
+
+3. Rebuild and restart the container so it gets the latest `yt-dlp`:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+`config/cookies.txt` and `.env` are ignored by Git because they contain private
+credentials.
+
 ### Minimum Requirements (for testing/light usage):
 - CPU : 4-core modern processor (Intel i5/i7 or AMD Ryzen 5/7)
 - RAM : 8GB (16GB recommended)
