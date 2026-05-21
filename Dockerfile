@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM python:3.9-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -12,7 +13,11 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN python -m pip install --no-compile --prefer-binary -r requirements.txt \
+RUN --mount=type=tmpfs,target=/tmp \
+    python -m pip install --no-compile --prefer-binary torch==2.8.0 torchaudio==2.8.0 \
+    && rm -rf /tmp/* /root/.cache/pip
+RUN --mount=type=tmpfs,target=/tmp \
+    python -m pip install --no-compile --prefer-binary -r requirements.txt \
     && rm -rf /tmp/* /root/.cache/pip
 
 # Copy application code
