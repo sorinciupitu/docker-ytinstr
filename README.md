@@ -34,6 +34,15 @@ from `config/cookies.txt` by default and mounts it into Docker as read-only.
    docker compose up -d --build
    ```
 
+   If Docker fails during dependency installation with `No space left on
+   device`, clear unused Docker build data and retry:
+
+   ```bash
+   docker builder prune -af
+   docker system prune -af
+   docker compose up -d --build
+   ```
+
 `config/cookies.txt` and `.env` are ignored by Git because they contain private
 credentials.
 
