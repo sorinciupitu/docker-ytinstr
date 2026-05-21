@@ -6,6 +6,9 @@ YouTube to Instrumental Converter (Telegram Bot)
 YouTube may block automated downloads unless `yt-dlp` receives cookies from a
 signed-in browser session. This app now reads a Netscape-format cookies file
 from `config/cookies.txt` by default and mounts it into Docker as read-only.
+For each request, the bot copies that file into its temporary processing
+directory before giving it to `yt-dlp`, because `yt-dlp` may update the cookie
+jar while downloading.
 
 1. Keep your Telegram token in a local `.env` file:
 

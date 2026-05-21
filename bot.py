@@ -49,11 +49,13 @@ def get_ffmpeg_location():
         logger.warning("Could not locate bundled ffmpeg: %s", e)
         return None
 
-def configure_ytdlp_auth(ydl_opts):
+def configure_ytdlp_auth(ydl_opts, writable_dir):
     """Attach YouTube cookies to yt-dlp or fail with an actionable message."""
     if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE) and os.path.getsize(YTDLP_COOKIES_FILE) > 0:
-        ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
-        logger.info("Using yt-dlp cookies file: %s", YTDLP_COOKIES_FILE)
+        cookie_copy = os.path.join(writable_dir, 'cookies.txt')
+        shutil.copy2(YTDLP_COOKIES_FILE, cookie_copy)
+        ydl_opts['cookiefile'] = cookie_copy
+        logger.info("Using yt-dlp cookies file copy: %s", cookie_copy)
         return
 
     if YTDLP_COOKIES_FROM_BROWSER:
@@ -183,7 +185,7 @@ def download_youtube_audio(url, output_path):
         ydl_opts['ffmpeg_location'] = ffmpeg_location
         logger.info("Using ffmpeg binary: %s", ffmpeg_location)
 
-    configure_ytdlp_auth(ydl_opts)
+    configure_ytdlp_auth(ydl_opts, os.path.dirname(output_path))
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

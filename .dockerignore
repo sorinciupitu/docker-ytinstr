@@ -1,5 +1,6 @@
 .git
 .env
+.DS_Store
 config/cookies.txt
 
 __pycache__/
