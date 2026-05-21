@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1.7
+FROM gcc:12-bookworm AS gcc-runtime
+
 FROM python:3.10-slim-bookworm
 
 ARG DENO_VERSION=2.7.12
@@ -9,12 +11,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_NO_COMPILE=1 \
-    PIP_ROOT_USER_ACTION=ignore
+    PIP_ROOT_USER_ACTION=ignore \
+    LD_LIBRARY_PATH=/usr/local/lib
 
-# Install the small runtime library required by torch/torchaudio.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+# Copy the small OpenMP runtime library required by torch/torchaudio without using apt.
+RUN --mount=from=gcc-runtime,source=/usr/lib,target=/gcc-libs,readonly python - <<'PY'
+import glob
+import os
+import shutil
+
+matches = glob.glob("/gcc-libs/**/libgomp.so.1*", recursive=True)
+if not matches:
+    raise SystemExit("Could not find libgomp.so.1 in gcc runtime image")
+
+source = os.path.realpath(matches[0])
+destination = "/usr/local/lib/libgomp.so.1"
+shutil.copy2(source, destination)
+PY
 
 # yt-dlp needs an external JavaScript runtime for full YouTube support.
 RUN --mount=type=tmpfs,target=/tmp DENO_VERSION="${DENO_VERSION}" TARGETARCH="${TARGETARCH}" python - <<'PY'
