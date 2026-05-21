@@ -6,6 +6,7 @@ import yt_dlp
 import subprocess
 import tempfile
 import shutil
+import imageio_ffmpeg
 from dotenv import load_dotenv  # Add this import
 from demucs_separator import DemucsVocalSeparator  # Import the Demucs separator
 
@@ -26,10 +27,22 @@ OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 DEFAULT_COOKIES_FILE = os.path.join(BASE_DIR, "config", "cookies.txt")
 YTDLP_COOKIES_FILE = os.environ.get("YTDLP_COOKIES_FILE", DEFAULT_COOKIES_FILE)
 YTDLP_COOKIES_FROM_BROWSER = os.environ.get("YTDLP_COOKIES_FROM_BROWSER")
+FFMPEG_LOCATION = os.environ.get("FFMPEG_LOCATION")
 
 # Create directories if they don't exist
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def get_ffmpeg_location():
+    """Return a usable ffmpeg binary path for yt-dlp."""
+    if FFMPEG_LOCATION:
+        return FFMPEG_LOCATION
+
+    try:
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as e:
+        logger.warning("Could not locate bundled ffmpeg: %s", e)
+        return None
 
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
@@ -134,6 +147,11 @@ def download_youtube_audio(url, output_path):
         'outtmpl': output_path,
         'noplaylist': True,  # Add this to prevent playlist downloads
     }
+
+    ffmpeg_location = get_ffmpeg_location()
+    if ffmpeg_location:
+        ydl_opts['ffmpeg_location'] = ffmpeg_location
+        logger.info("Using ffmpeg binary: %s", ffmpeg_location)
 
     if YTDLP_COOKIES_FILE and os.path.exists(YTDLP_COOKIES_FILE):
         ydl_opts['cookiefile'] = YTDLP_COOKIES_FILE
