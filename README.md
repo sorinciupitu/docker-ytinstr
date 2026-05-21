@@ -10,6 +10,9 @@ For each request, the bot copies that file into its temporary processing
 directory before giving it to `yt-dlp`, because `yt-dlp` may update the cookie
 jar while downloading.
 
+The Docker image also installs Deno and `yt-dlp-ejs`, which `yt-dlp` needs for
+YouTube's JavaScript challenge solving.
+
 1. Keep your Telegram token in a local `.env` file:
 
    ```bash
