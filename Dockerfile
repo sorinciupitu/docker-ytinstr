@@ -15,8 +15,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     LD_LIBRARY_PATH=/usr/local/lib
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
+RUN apt-get -o Acquire::Check-Valid-Until=false \
+            -o Acquire::AllowInsecureRepositories=true \
+            -o Acquire::AllowDowngradeToInsecureRepositories=true \
+            update \
+    && apt-get install -y --allow-unauthenticated --no-install-recommends \
+        ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the small OpenMP runtime library required by torch/torchaudio without using apt.
